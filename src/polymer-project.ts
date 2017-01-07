@@ -187,6 +187,8 @@ class HtmlSplitter extends Transform {
   static isInlineScript =
       pred.AND(pred.hasTagName('script'), pred.NOT(pred.hasAttr('src')));
 
+  static isInlineStyle = pred.hasTagName('style');
+
   _project: PolymerProject;
 
   constructor(project: PolymerProject) {
@@ -228,6 +230,39 @@ class HtmlSplitter extends Transform {
           this.push(scriptFile);
         }
 
+        const treeAdapter = parse5.treeAdapters.default;
+        const styleTags = dom5.queryAll(doc, HtmlSplitter.isInlineStyle);
+        for (let i = 0; i < styleTags.length; i++) {
+          const styleTag = styleTags[i];
+          const source = dom5.getTextContent(styleTag);
+          const childFilename =
+              `${osPath.basename(filePath)}_style_${i}.css`;
+          const childPath =
+              osPath.join(osPath.dirname(filePath), childFilename);
+          styleTag.childNodes = [];
+
+          // Replace inline <style> with <link>. Add a special data-split
+          // attribute so that the rejoiner can fetch only the link tags
+          // the splitter modified.
+          const linkTag = treeAdapter.createElement('link', styleTag.namespaceURI, []);
+          for (const attr of styleTag.attrs) {
+            dom5.setAttribute(linkTag, attr.name, attr.value);
+          }
+          dom5.setAttribute(linkTag, 'rel', 'stylesheet');
+          dom5.setAttribute(linkTag, 'href', childFilename);
+          dom5.setAttribute(linkTag, 'data-split', '');
+          dom5.replace(styleTag, linkTag);
+
+          const styleFile = new File({
+            cwd: file.cwd,
+            base: file.base,
+            path: childPath,
+            contents: new Buffer(source),
+          });
+          this._project.addSplitPath(filePath, childPath);
+          this.push(styleFile);
+        }
+
         const splitContents = parse5.serialize(doc);
         const newFile = new File({
           cwd: file.cwd,
@@ -253,6 +288,13 @@ class HtmlSplitter extends Transform {
 class HtmlRejoiner extends Transform {
   static isExternalScript =
       pred.AND(pred.hasTagName('script'), pred.hasAttr('src'));
+
+  static isExternalStyle =
+      pred.AND(
+          pred.hasTagName('link'),
+          pred.hasAttr('href'),
+          pred.hasAttrValue('rel', 'stylesheet'),
+          pred.hasAttr('data-split'));
 
   _project: PolymerProject;
 
@@ -305,6 +347,32 @@ class HtmlRejoiner extends Transform {
         const scriptSource = splitFile.parts.get(scriptPath);
         dom5.setTextContent(scriptTag, scriptSource);
         dom5.removeAttribute(scriptTag, 'src');
+      }
+    }
+
+    const treeAdapter = parse5.treeAdapters.default;
+    const linkTags = dom5.queryAll(doc, HtmlRejoiner.isExternalStyle);
+    for (let i = 0; i < linkTags.length; i++) {
+      const linkTag = linkTags[i];
+      const hrefAttribute = dom5.getAttribute(linkTag, 'href');
+      const scriptPath =
+          osPath.join(osPath.dirname(splitFile.path), hrefAttribute);
+      if (splitFile.parts.has(scriptPath)) {
+        const scriptSource = splitFile.parts.get(scriptPath);
+
+        // Replace <link> with equivalent <style> tag
+        const styleTag = treeAdapter.createElement('style',
+                                                   linkTag.namespaceURI, []);
+        for (const attr of linkTag.attrs) {
+          // Exclude link-specific attributes, and the temporary attribute
+          // we had used to mark this tag for rejoining.
+          if (['rel', 'href', 'data-split'].includes(attr.name)) {
+            continue;
+          }
+          dom5.setAttribute(styleTag, attr.name, attr.value);
+        }
+        dom5.setTextContent(styleTag, scriptSource);
+        dom5.replace(linkTag, styleTag);
       }
     }
 

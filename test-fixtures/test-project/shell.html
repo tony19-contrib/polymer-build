@@ -4,6 +4,27 @@
 
 <div id="A"></div>
 
+<style include="shared-styles">
+  :host { display: block; }
+</style>
+<style>
+  div { color: tomato; }
+</style>
+
+<dom-module>
+  <style include="shared-styles">
+    h1 { font-size: 24px; }
+  </style>
+  <template>
+    <style include="shared-styles">
+      :host { display: flex; }
+    </style>
+    <style>
+      div { color: rebeccapurple; }
+    </style>
+  </template>
+</dom-module>
+
 <script>
   console.log('shell');
 </script>

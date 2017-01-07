@@ -158,6 +158,11 @@ suite('PolymerProject', () => {
         .on('end', () => {
           const expectedSplitFiles = [
             'index.html',
+            'shell.html_style_0.css',
+            'shell.html_style_1.css',
+            'shell.html_style_2.css',
+            'shell.html_style_3.css',
+            'shell.html_style_4.css',
             'shell.html_script_0.js',
             'shell.html_script_1.js',
             'shell.html',
@@ -177,6 +182,21 @@ suite('PolymerProject', () => {
           assert.include(
               splitFiles.get('shell.html_script_1.js').contents.toString(),
               `console.log('shell 2');`);
+          assert.include(
+            splitFiles.get('shell.html_style_0.css').contents.toString(),
+            `:host { display: block; }`);
+          assert.include(
+            splitFiles.get('shell.html_style_1.css').contents.toString(),
+            `div { color: tomato; }`);
+          assert.include(
+            splitFiles.get('shell.html_style_2.css').contents.toString(),
+            `h1 { font-size: 24px; }`);
+          assert.include(
+            splitFiles.get('shell.html_style_3.css').contents.toString(),
+            `:host { display: flex; }`);
+          assert.include(
+            splitFiles.get('shell.html_style_4.css').contents.toString(),
+            `div { color: rebeccapurple; }`);
           assert.notInclude(
               splitFiles.get('shell.html').contents.toString(), `console.log`);
           assert.include(
