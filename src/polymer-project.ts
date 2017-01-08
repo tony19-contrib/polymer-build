@@ -256,8 +256,7 @@ class HtmlSplitter extends Transform {
   _splitStyle(file: File, doc: parse5.ASTNode, filePath: string) {
     const treeAdapter = parse5.treeAdapters.default;
     const styleTags = dom5.queryAll(doc, HtmlSplitter.isInlineStyle);
-    for (let i = 0; i < styleTags.length; i++) {
-      const styleTag = styleTags[i];
+    styleTags.forEach((styleTag, i) => {
       const source = dom5.getTextContent(styleTag);
       const childFilename =
           `${osPath.basename(filePath)}_style_${i}.css`;
@@ -284,7 +283,7 @@ class HtmlSplitter extends Transform {
       });
       this._project.addSplitPath(filePath, childPath);
       this.push(styleFile);
-    }
+    });
   }
 }
 
@@ -359,8 +358,7 @@ class HtmlRejoiner extends Transform {
 
   _rejoinScript(splitFile: SplitFile, doc: parse5.ASTNode) {
     const scriptTags = dom5.queryAll(doc, HtmlRejoiner.isExternalScript);
-    for (let i = 0; i < scriptTags.length; i++) {
-      const scriptTag = scriptTags[i];
+    for (const scriptTag of scriptTags) {
       const srcAttribute = dom5.getAttribute(scriptTag, 'src');
       const scriptPath =
           osPath.join(osPath.dirname(splitFile.path), srcAttribute);
@@ -375,8 +373,7 @@ class HtmlRejoiner extends Transform {
   _rejoinStyle(splitFile: SplitFile, doc: parse5.ASTNode) {
     const treeAdapter = parse5.treeAdapters.default;
     const linkTags = dom5.queryAll(doc, HtmlRejoiner.isExternalStyle);
-    for (let i = 0; i < linkTags.length; i++) {
-      const linkTag = linkTags[i];
+    for (const linkTag of linkTags) {
       const hrefAttribute = dom5.getAttribute(linkTag, 'href');
       const scriptPath =
           osPath.join(osPath.dirname(splitFile.path), hrefAttribute);
