@@ -147,16 +147,21 @@ suite('PolymerProject', () => {
 
   });
 
-  test('splits and rejoins scripts', (done) => {
+  suite('splitter/rejoiner', () => {
     const splitFiles = new Map();
     const joinedFiles = new Map();
-    defaultProject.sources()
+    const expectedSplitFiles: String[] = [];
+    const expectedJoinedFiles: String[] = [];
+
+    suiteSetup((done) => {
+      defaultProject.sources()
         .pipe(defaultProject.splitHtml())
         .on('data', (f: File) => splitFiles.set(unroot(f.path), f))
         .pipe(defaultProject.rejoinHtml())
         .on('data', (f: File) => joinedFiles.set(unroot(f.path), f))
         .on('end', () => {
-          const expectedSplitFiles = [
+          /* no spread operator in Node 4, so use apply... */
+          Array.prototype.push.apply(expectedSplitFiles, [
             'index.html',
             'shell.html_style_0.css',
             'shell.html_style_1.css',
@@ -168,48 +173,87 @@ suite('PolymerProject', () => {
             'shell.html_script_1.js',
             'shell.html',
             'source-dir/my-app.html',
-          ];
-          const expectedJoinedFiles = [
+          ]);
+          Array.prototype.push.apply(expectedJoinedFiles, [
             'index.html',
             'shell.html',
             'source-dir/my-app.html',
-          ];
-          assert.sameMembers(Array.from(splitFiles.keys()), expectedSplitFiles);
-          assert.sameMembers(
-              Array.from(joinedFiles.keys()), expectedJoinedFiles);
-          assert.include(
-              splitFiles.get('shell.html_script_0.js').contents.toString(),
-              `console.log('shell');`);
-          assert.include(
-              splitFiles.get('shell.html_script_1.js').contents.toString(),
-              `console.log('shell 2');`);
-          assert.include(
-            splitFiles.get('shell.html_style_0.css').contents.toString(),
-            `:host { display: block; }`);
-          assert.include(
-            splitFiles.get('shell.html_style_1.css').contents.toString(),
-            `div { color: tomato; }`);
-          assert.include(
-            splitFiles.get('shell.html_style_2.css').contents.toString(),
-            `h1 { font-size: 24px; }`);
-          assert.include(
-            splitFiles.get('shell.html_style_3.css').contents.toString(),
-            `div { color: deepskyblue; }`);
-          assert.include(
-            splitFiles.get('shell.html_style_4.css').contents.toString(),
-            `:host { display: flex; }`);
-          assert.include(
-            splitFiles.get('shell.html_style_5.css').contents.toString(),
-            `div { color: rebeccapurple; }`);
-          assert.notInclude(
-              splitFiles.get('shell.html').contents.toString(), `console.log`);
-          assert.include(
-              splitFiles.get('shell.html').contents.toString(),
-              `# I am markdown`);
-          assert.include(
-              joinedFiles.get('shell.html').contents.toString(), `console.log`);
+          ]);
           done();
         });
+    });
+
+    test('discovers all splittables (css, html, js)', () => {
+      assert.sameMembers(Array.from(splitFiles.keys()), expectedSplitFiles);
+    });
+    test('rejoins original files', () => {
+      assert.sameMembers(
+          Array.from(joinedFiles.keys()), expectedJoinedFiles);
+    });
+    test('discovers <script> without type', () => {
+      assert.isOk(splitFiles.get('shell.html_script_0.js'));
+      assert.include(
+          splitFiles.get('shell.html_script_0.js').contents.toString(),
+          `console.log('shell');`);
+    });
+    test('discovers <script> with type', () => {
+      assert.isOk(splitFiles.get('shell.html_script_1.js'));
+      assert.include(
+          splitFiles.get('shell.html_script_1.js').contents.toString(),
+          `console.log('shell 2');`);
+    });
+    test('discovers <style> with include', () => {
+      assert.isOk(splitFiles.get('shell.html_style_0.css'));
+      assert.include(
+          splitFiles.get('shell.html_style_0.css').contents.toString(),
+          `:host { color: #000; }`);
+    });
+    test('discovers <style> without include', () => {
+      assert.isOk(splitFiles.get('shell.html_style_1.css'));
+      assert.include(
+          splitFiles.get('shell.html_style_1.css').contents.toString(),
+          `div { color: #001; }`);
+    });
+    test('discovers <dom-module><style> with include', () => {
+      assert.isOk(splitFiles.get('shell.html_style_2.css'));
+      assert.include(
+          splitFiles.get('shell.html_style_2.css').contents.toString(),
+          `:host { color: #002; }`);
+    });
+    test('discovers <dom-module><style> without include', () => {
+      assert.isOk(splitFiles.get('shell.html_style_3.css'));
+      assert.include(
+          splitFiles.get('shell.html_style_3.css').contents.toString(),
+          `div { color: #003; }`);
+    });
+    test('discovers <dom-module><template><style> with include', () => {
+      assert.isOk(splitFiles.get('shell.html_style_4.css'));
+      assert.include(
+          splitFiles.get('shell.html_style_4.css').contents.toString(),
+          `:host { color: #004; }`);
+    });
+    test('discovers <dom-module><template><style> without include', () => {
+      assert.isOk(splitFiles.get('shell.html_style_5.css'));
+      assert.include(
+          splitFiles.get('shell.html_style_5.css').contents.toString(),
+          `div { color: #005; }`);
+    });
+    test('splits recognized <script> types', () => {
+      assert.isOk(splitFiles.get('shell.html'));
+      assert.notInclude(
+          splitFiles.get('shell.html').contents.toString(), `console.log`);
+    });
+    test('does not split unrecognized <script> types', () => {
+      assert.isOk(splitFiles.get('shell.html'));
+      assert.include(
+          splitFiles.get('shell.html').contents.toString(),
+          `# I am markdown`);
+    });
+    test('restores content on rejoin', () => {
+      assert.isOk(joinedFiles.get('shell.html'));
+      assert.include(
+          joinedFiles.get('shell.html').contents.toString(), `console.log`);
+    });
   });
 
   test('split/rejoin deals with bad paths', (done) => {
