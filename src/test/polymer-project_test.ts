@@ -163,6 +163,7 @@ suite('PolymerProject', () => {
             'shell.html_style_2.css',
             'shell.html_style_3.css',
             'shell.html_style_4.css',
+            'shell.html_style_5.css',
             'shell.html_script_0.js',
             'shell.html_script_1.js',
             'shell.html',
@@ -193,9 +194,12 @@ suite('PolymerProject', () => {
             `h1 { font-size: 24px; }`);
           assert.include(
             splitFiles.get('shell.html_style_3.css').contents.toString(),
-            `:host { display: flex; }`);
+            `div { color: deepskyblue; }`);
           assert.include(
             splitFiles.get('shell.html_style_4.css').contents.toString(),
+            `:host { display: flex; }`);
+          assert.include(
+            splitFiles.get('shell.html_style_5.css').contents.toString(),
             `div { color: rebeccapurple; }`);
           assert.notInclude(
               splitFiles.get('shell.html').contents.toString(), `console.log`);
