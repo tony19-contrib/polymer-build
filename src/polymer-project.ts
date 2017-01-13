@@ -255,7 +255,7 @@ class HtmlSplitter extends Transform {
 
   _splitStyle(file: File, doc: parse5.ASTNode, filePath: string) {
     const treeAdapter = parse5.treeAdapters.default;
-    const styleTags = dom5.queryAll(doc, HtmlSplitter.isInlineStyle);
+    const styleTags = dom5.queryAll(doc, HtmlSplitter.isInlineStyle, [], dom5.childNodesIncludeTemplate);
     styleTags.forEach((styleTag, i) => {
       const source = dom5.getTextContent(styleTag);
       const childFilename =
