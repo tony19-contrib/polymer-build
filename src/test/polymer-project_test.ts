@@ -254,10 +254,58 @@ suite('PolymerProject', () => {
       assert.include(
           joinedFiles.get('shell.html').contents.toString(), `console.log`);
     });
-    test('rejoined file does not contain split link tag', () => {
+    test('removes data-split link tags', () => {
       assert.isOk(joinedFiles.get('shell.html'));
       assert.notInclude(
         joinedFiles.get('shell.html').contents.toString(), `data-split`);
+    });
+    test('rejoins <style> with include', () => {
+      assert.isOk(joinedFiles.get('shell.html'));
+      assert.include(
+        joinedFiles.get('shell.html').contents.toString(),
+        `<style include="shared-styles">\n` +
+        `  :host { color: #000; }\n` +
+        `</style>`);
+    });
+    test('rejoins <style> without include', () => {
+      assert.isOk(joinedFiles.get('shell.html'));
+      assert.include(
+        joinedFiles.get('shell.html').contents.toString(),
+        `<style>\n` +
+        `  div { color: #001; }\n` +
+        `</style>`);
+    });
+    test('rejoins <dom-module><style> with include', () => {
+      assert.isOk(joinedFiles.get('shell.html'));
+      assert.include(
+        joinedFiles.get('shell.html').contents.toString(),
+        `<style include="shared-styles">\n  ` +
+        `  :host { color: #002; }\n  ` +
+        `</style>`);
+    });
+    test('rejoins <dom-module><style> without include', () => {
+      assert.isOk(joinedFiles.get('shell.html'));
+      assert.include(
+        joinedFiles.get('shell.html').contents.toString(),
+        `<style>\n  ` +
+        `  div { color: #003; }\n  ` +
+        `</style>`);
+    });
+    test('rejoins <dom-module><template><style> with include', () => {
+      assert.isOk(joinedFiles.get('shell.html'));
+      assert.include(
+        joinedFiles.get('shell.html').contents.toString(),
+        `<style include="shared-styles">\n    ` +
+        `  :host { color: #004; }\n    ` +
+        `</style>`);
+    });
+    test('rejoins <dom-module><template><style> without include', () => {
+      assert.isOk(joinedFiles.get('shell.html'));
+      assert.include(
+        joinedFiles.get('shell.html').contents.toString(),
+        `<style>\n    ` +
+        `  div { color: #005; }\n    ` +
+        `</style>`);
     });
   });
 
