@@ -190,49 +190,49 @@ suite('PolymerProject', () => {
       assert.sameMembers(
           Array.from(joinedFiles.keys()), expectedJoinedFiles);
     });
-    test('discovers <script> without type', () => {
+    test('splits <script> without type', () => {
       assert.isOk(splitFiles.get('shell.html_script_0.js'));
       assert.include(
           splitFiles.get('shell.html_script_0.js').contents.toString(),
           `console.log('shell');`);
     });
-    test('discovers <script> with type', () => {
+    test('splits <script> with type', () => {
       assert.isOk(splitFiles.get('shell.html_script_1.js'));
       assert.include(
           splitFiles.get('shell.html_script_1.js').contents.toString(),
           `console.log('shell 2');`);
     });
-    test('discovers <style> with include', () => {
+    test('splits <style> with include', () => {
       assert.isOk(splitFiles.get('shell.html_style_0.css'));
       assert.include(
           splitFiles.get('shell.html_style_0.css').contents.toString(),
           `:host { color: #000; }`);
     });
-    test('discovers <style> without include', () => {
+    test('splits <style> without include', () => {
       assert.isOk(splitFiles.get('shell.html_style_1.css'));
       assert.include(
           splitFiles.get('shell.html_style_1.css').contents.toString(),
           `div { color: #001; }`);
     });
-    test('discovers <dom-module><style> with include', () => {
+    test('splits <dom-module><style> with include', () => {
       assert.isOk(splitFiles.get('shell.html_style_2.css'));
       assert.include(
           splitFiles.get('shell.html_style_2.css').contents.toString(),
           `:host { color: #002; }`);
     });
-    test('discovers <dom-module><style> without include', () => {
+    test('splits <dom-module><style> without include', () => {
       assert.isOk(splitFiles.get('shell.html_style_3.css'));
       assert.include(
           splitFiles.get('shell.html_style_3.css').contents.toString(),
           `div { color: #003; }`);
     });
-    test('discovers <dom-module><template><style> with include', () => {
+    test('splits <dom-module><template><style> with include', () => {
       assert.isOk(splitFiles.get('shell.html_style_4.css'));
       assert.include(
           splitFiles.get('shell.html_style_4.css').contents.toString(),
           `:host { color: #004; }`);
     });
-    test('discovers <dom-module><template><style> without include', () => {
+    test('splits <dom-module><template><style> without include', () => {
       assert.isOk(splitFiles.get('shell.html_style_5.css'));
       assert.include(
           splitFiles.get('shell.html_style_5.css').contents.toString(),
@@ -249,15 +249,10 @@ suite('PolymerProject', () => {
           splitFiles.get('shell.html').contents.toString(),
           `# I am markdown`);
     });
-    test('restores content on rejoin', () => {
+    test('rejoins <script>', () => {
       assert.isOk(joinedFiles.get('shell.html'));
       assert.include(
           joinedFiles.get('shell.html').contents.toString(), `console.log`);
-    });
-    test('removes data-split link tags', () => {
-      assert.isOk(joinedFiles.get('shell.html'));
-      assert.notInclude(
-        joinedFiles.get('shell.html').contents.toString(), `data-split`);
     });
     test('rejoins <style> with include', () => {
       assert.isOk(joinedFiles.get('shell.html'));
@@ -306,6 +301,11 @@ suite('PolymerProject', () => {
         `<style>\n    ` +
         `  div { color: #005; }\n    ` +
         `</style>`);
+    });
+    test('removes data-split link tags', () => {
+      assert.isOk(joinedFiles.get('shell.html'));
+      assert.notInclude(
+        joinedFiles.get('shell.html').contents.toString(), `data-split`);
     });
   });
 
