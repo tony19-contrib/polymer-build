@@ -375,10 +375,10 @@ class HtmlRejoiner extends Transform {
     const linkTags = dom5.queryAll(doc, HtmlRejoiner.isExternalStyle, [], dom5.childNodesIncludeTemplate);
     for (const linkTag of linkTags) {
       const hrefAttribute = dom5.getAttribute(linkTag, 'href');
-      const scriptPath =
+      const stylePath =
           osPath.join(osPath.dirname(splitFile.path), hrefAttribute);
-      if (splitFile.parts.has(scriptPath)) {
-        const scriptSource = splitFile.parts.get(scriptPath);
+      if (splitFile.parts.has(stylePath)) {
+        const styleSource = splitFile.parts.get(stylePath);
 
         // Replace <link> with equivalent <style> tag
         const styleTag = treeAdapter.createElement('style',
@@ -391,7 +391,7 @@ class HtmlRejoiner extends Transform {
           }
           dom5.setAttribute(styleTag, attr.name, attr.value);
         }
-        dom5.setTextContent(styleTag, scriptSource);
+        dom5.setTextContent(styleTag, styleSource);
         dom5.replace(linkTag, styleTag);
       }
     }
