@@ -254,6 +254,11 @@ suite('PolymerProject', () => {
       assert.include(
           joinedFiles.get('shell.html').contents.toString(), `console.log`);
     });
+    test('rejoined file does not contain split link tag', () => {
+      assert.isOk(joinedFiles.get('shell.html'));
+      assert.notInclude(
+        joinedFiles.get('shell.html').contents.toString(), `data-split`);
+    });
   });
 
   test('split/rejoin deals with bad paths', (done) => {
