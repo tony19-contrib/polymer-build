@@ -372,7 +372,7 @@ class HtmlRejoiner extends Transform {
 
   _rejoinStyle(splitFile: SplitFile, doc: parse5.ASTNode) {
     const treeAdapter = parse5.treeAdapters.default;
-    const linkTags = dom5.queryAll(doc, HtmlRejoiner.isExternalStyle);
+    const linkTags = dom5.queryAll(doc, HtmlRejoiner.isExternalStyle, [], dom5.childNodesIncludeTemplate);
     for (const linkTag of linkTags) {
       const hrefAttribute = dom5.getAttribute(linkTag, 'href');
       const scriptPath =
