@@ -142,6 +142,7 @@ export class BuildAnalyzer {
   loader: StreamLoader;
   analyzer: Analyzer;
   started: boolean = false;
+  sourceFilesLoaded: boolean = false;
 
   private _sourcesStream: NodeJS.ReadableStream;
   private _sourcesProcessingStream: NodeJS.ReadWriteStream;
@@ -198,15 +199,29 @@ export class BuildAnalyzer {
     //   1. The resolver stream, to resolve each file loaded via the analyzer
     //   2. The analyzer stream, to analyze app fragments for dependencies
     this._sourcesProcessingStream =
-        this._sourcesStream.pipe(new ResolveTransform(this))
+        this._sourcesStream
+            .on('error',
+                (err: Error) =>
+                    this._sourcesProcessingStream.emit('error', err))
+            .pipe(new ResolveTransform(this))
+            .on('error',
+                (err: Error) =>
+                    this._sourcesProcessingStream.emit('error', err))
+            .on('finish', this.onSourcesStreamComplete.bind(this))
             .pipe(new AnalyzeTransform(this));
-
 
     // _dependenciesProcessingStream: Pipe the dependencies stream through...
     //   1. The vinyl loading stream, to load file objects from file paths
     //   2. The resolver stream, to resolve each loaded file for the analyzer
     this._dependenciesProcessingStream =
-        this._dependenciesStream.pipe(new VinylReaderTransform())
+        this._dependenciesStream
+            .on('error',
+                (err: Error) =>
+                    this._dependenciesProcessingStream.emit('error', err))
+            .pipe(new VinylReaderTransform())
+            .on('error',
+                (err: Error) =>
+                    this._dependenciesProcessingStream.emit('error', err))
             .pipe(new ResolveTransform(this));
   }
 
@@ -263,6 +278,32 @@ export class BuildAnalyzer {
   }
 
   /**
+   * Perform some checks once we know that `_sourcesStream` is done loading.
+   */
+  private onSourcesStreamComplete() {
+    // Emit an error if there are missing source files still deferred. Otherwise
+    // this would cause the analyzer to hang.
+    if (this.loader.hasDeferredFiles()) {
+      for (const fileUrl of this.loader.deferredFiles.keys()) {
+        // TODO(fks) 01-13-2017: Replace with config.isSource() once released
+        if (minimatchAll(fileUrl, this.config.sources)) {
+          this.emitError(new Error(`Not found: ${fileUrl}`));
+        }
+      }
+    }
+    // Set sourceFilesLoaded so that future files aren't accidentally deferred
+    this.sourceFilesLoaded = true;
+  }
+
+  /**
+   * Helper function for emitting a general error onto both file streams.
+   */
+  emitError(err: Error) {
+    this._sourcesProcessingStream.emit('error', err);
+    this._dependenciesProcessingStream.emit('error', err);
+  }
+
+  /**
    * Called when analysis is complete and there are no more files to analyze.
    * Checks for serious errors before resolving its dependency analysis and
    * ending the dependency stream (which it controls).
@@ -274,10 +315,8 @@ export class BuildAnalyzer {
 
     // If any ERROR warnings occurred, propagate an error in each build stream.
     if (errorWarningCount > 0) {
-      const err =
-          new Error(`${errorWarningCount} error(s) occurred during build.`);
-      this._sourcesProcessingStream.emit('error', err);
-      this._dependenciesProcessingStream.emit('error', err);
+      this.emitError(
+          new Error(`${errorWarningCount} error(s) occurred during build.`));
       return;
     }
 
@@ -285,12 +324,8 @@ export class BuildAnalyzer {
     // an error in each build stream.
     if (this.loader.hasDeferredFiles()) {
       for (const fileUrl of this.loader.deferredFiles.keys()) {
-        logger.error(`${fileUrl} never loaded`);
+        this.emitError(new Error(`Not found: ${fileUrl}`));
       }
-      const err = new Error(
-          this.loader.deferredFiles.size + ` deferred files were never loaded`);
-      this._sourcesProcessingStream.emit('error', err);
-      this._dependenciesProcessingStream.emit('error', err);
       return;
     }
 
@@ -410,28 +445,36 @@ export class BuildAnalyzer {
   }
 
   /**
-   * Process the given dependency before pushing it through the stream.
+   * Check that the source stream has not already completed loading by the time
+   * this file was analyzed.
+   */
+  foundSourceFile(filePath: string): void {
+    // If we've analyzed a new path to a source file after the sources
+    // stream has completed, we can assume that that file does not
+    // exist. Reject with a "Not Found" error.
+    if (this.sourceFilesLoaded) {
+      throw new Error(`Not found: "${filePath}"`);
+    }
+    // Source files are loaded automatically through the vinyl source
+    // stream. If it hasn't been seen yet, defer resolving until it has
+    // been loaded by vinyl.
+    logger.debug('dependency is a source file, ignoring...', {dep: filePath});
+  }
+
+  /**
+   * Push the given filepath into the dependencies stream for loading.
    * Each dependency is only pushed through once to avoid duplicates.
    */
-  pushDependency(dependencyUrl: string) {
-    if (this.getFileByUrl(dependencyUrl)) {
+  foundDependencyFile(filePath: string): void {
+    if (this.getFile(filePath)) {
       logger.debug(
-          'dependency has already been pushed, ignoring...',
-          {dep: dependencyUrl});
-      return;
-    }
-
-    const dependencyFilePath = pathFromUrl(this.config.root, dependencyUrl);
-    if (minimatchAll(dependencyFilePath, this.config.sources)) {
-      logger.debug(
-          'dependency is a source file, ignoring...', {dep: dependencyUrl});
+          'dependency has already been pushed, ignoring...', {dep: filePath});
       return;
     }
 
     logger.debug(
-        'new dependency found, pushing into dependency stream...',
-        dependencyFilePath);
-    this._dependenciesStream.push(dependencyFilePath);
+        'new dependency found, pushing into dependency stream...', filePath);
+    this._dependenciesStream.push(filePath);
   }
 }
 
@@ -494,14 +537,20 @@ export class StreamLoader implements BackwardsCompatibleUrlLoader {
       return Promise.resolve(file.contents.toString());
     }
 
-    let callback: DeferredFileCallback;
-    const waitForFile =
-        new Promise((resolve: DeferredFileCallback, _reject: () => any) => {
-          callback = resolve;
+    return new Promise(
+        (resolve: DeferredFileCallback, reject: (err: Error) => void) => {
+          this.deferredFiles.set(filePath, resolve);
+          try {
+            // TODO(fks) 01-13-2017: Replace with config.isSource()
+            if (minimatchAll(filePath, this.config.sources)) {
+              this.analyzer.foundSourceFile(filePath);
+            } else {
+              this.analyzer.foundDependencyFile(filePath);
+            }
+          } catch (err) {
+            reject(err);
+          }
         });
-    this.deferredFiles.set(filePath, callback);
-    this.analyzer.pushDependency(urlPath);
-    return waitForFile;
   }
 
   /**

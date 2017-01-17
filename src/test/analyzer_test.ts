@@ -166,7 +166,57 @@ suite('Analyzer', () => {
                     foundDependencies.has(path.resolve(root, 'shared-2.html')));
               });
         });
+
   });
+
+  test(
+      'propagates an error when a dependency filepath is analyzed but cannot be found',
+      () => {
+        const root = `test-fixtures/bad-src-import`;
+        const config = new ProjectConfig({
+          root: root,
+          entrypoint: 'index.html',
+          sources: ['src/**/*'],
+        });
+        const analyzer = new BuildAnalyzer(config);
+
+        return waitForAll([analyzer.sources(), analyzer.dependencies()])
+            .then(() => {
+              throw new Error('Build Error Expected!');
+            })
+            .catch((err) => {
+              if (/1 error\(s\) occurred during build/.test(err.message)) {
+                // test passes!
+              } else {
+                throw err;
+              }
+            });
+      });
+
+  test(
+      'propagates an error when a source filepath is analyzed but cannot be found',
+      () => {
+        const root = `test-fixtures/bad-dependency-import`;
+        const config = new ProjectConfig({
+          root: root,
+          entrypoint: 'index.html',
+          sources: ['src/**/*'],
+        });
+        const analyzer = new BuildAnalyzer(config);
+
+        return waitForAll([analyzer.sources(), analyzer.dependencies()])
+            .then(() => {
+              throw new Error('Build Error Expected!');
+            })
+            .catch((err) => {
+              if (/ENOENT\: no such file or directory.*does\-not\-exist\-in\-dependencies\.html/
+                      .test(err.message)) {
+                // test passes!
+              } else {
+                throw err;
+              }
+            });
+      });
 
   test(
       'the analyzer stream will emit an error when an warning of type "error" occurs during analysis',
