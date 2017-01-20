@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 * `BuildAnalyzer.sources` & `BuildAnalyzer.dependencies` are now `BuildAnalyzer.sources()` & `BuildAnalyzer.dependencies()`, respectively. This change only affects uses who are importing and/or using the `BuildAnalyzer` class directly.
 * Fix issue where files were being loaded immediately, before the build stream was started.
+* Fix CSS split/rejoin (#32)
 
 
 ## [0.6.0] - 2017-01-14
