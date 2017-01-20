@@ -225,15 +225,14 @@ class HtmlSplitter extends Transform {
 
   _splitScript(file: File, doc: parse5.ASTNode, filePath: string) {
     const scriptTags = dom5.queryAll(doc, HtmlSplitter.isInlineScript);
-    for (let i = 0; i < scriptTags.length; i++) {
-      const scriptTag = scriptTags[i];
+    scriptTags.forEach((scriptTag, i) => {
       const source = dom5.getTextContent(scriptTag);
       const typeAtribute =
           dom5.getAttribute(scriptTag, 'type') || 'application/javascript';
       const extension = extensionsForType[typeAtribute];
       // If we don't recognize the script type attribute, don't split out.
       if (!extension) {
-        continue;
+        return;
       }
 
       const childFilename =
@@ -250,7 +249,7 @@ class HtmlSplitter extends Transform {
       });
       this._project.addSplitPath(filePath, childPath);
       this.push(scriptFile);
-    }
+    });
   }
 
   _splitStyle(file: File, doc: parse5.ASTNode, filePath: string) {
