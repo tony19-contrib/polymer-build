@@ -150,8 +150,8 @@ suite('PolymerProject', () => {
   suite('splitter/rejoiner', () => {
     const splitFiles = new Map();
     const joinedFiles = new Map();
-    const expectedSplitFiles: String[] = [];
-    const expectedJoinedFiles: String[] = [];
+    let expectedSplitFiles: String[] = [];
+    let expectedJoinedFiles: String[] = [];
 
     suiteSetup((done) => {
       defaultProject.sources()
@@ -160,8 +160,7 @@ suite('PolymerProject', () => {
         .pipe(defaultProject.rejoinHtml())
         .on('data', (f: File) => joinedFiles.set(unroot(f.path), f))
         .on('end', () => {
-          /* no spread operator in Node 4, so use apply... */
-          Array.prototype.push.apply(expectedSplitFiles, [
+          expectedSplitFiles = [
             'index.html',
             'shell.html_style_0.css',
             'shell.html_style_1.css',
@@ -173,12 +172,14 @@ suite('PolymerProject', () => {
             'shell.html_script_1.js',
             'shell.html',
             'source-dir/my-app.html',
-          ]);
-          Array.prototype.push.apply(expectedJoinedFiles, [
+          ];
+          Object.freeze(expectedSplitFiles);
+          expectedJoinedFiles = [
             'index.html',
             'shell.html',
             'source-dir/my-app.html',
-          ]);
+          ];
+          Object.freeze(expectedJoinedFiles);
           done();
         });
     });
