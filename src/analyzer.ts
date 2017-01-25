@@ -448,7 +448,7 @@ export class BuildAnalyzer {
    * Check that the source stream has not already completed loading by the time
    * this file was analyzed.
    */
-  foundSourceFile(filePath: string): void {
+  sourcePathAnalyzed(filePath: string): void {
     // If we've analyzed a new path to a source file after the sources
     // stream has completed, we can assume that that file does not
     // exist. Reject with a "Not Found" error.
@@ -465,7 +465,7 @@ export class BuildAnalyzer {
    * Push the given filepath into the dependencies stream for loading.
    * Each dependency is only pushed through once to avoid duplicates.
    */
-  foundDependencyFile(filePath: string): void {
+  dependencyPathAnalyzed(filePath: string): void {
     if (this.getFile(filePath)) {
       logger.debug(
           'dependency has already been pushed, ignoring...', {dep: filePath});
@@ -473,7 +473,7 @@ export class BuildAnalyzer {
     }
 
     logger.debug(
-        'new dependency found, pushing into dependency stream...', filePath);
+        'new dependency analyzed, pushing into dependency stream...', filePath);
     this._dependenciesStream.push(filePath);
   }
 }
@@ -543,9 +543,9 @@ export class StreamLoader implements BackwardsCompatibleUrlLoader {
           try {
             // TODO(fks) 01-13-2017: Replace with config.isSource()
             if (minimatchAll(filePath, this.config.sources)) {
-              this.analyzer.foundSourceFile(filePath);
+              this.analyzer.sourcePathAnalyzed(filePath);
             } else {
-              this.analyzer.foundDependencyFile(filePath);
+              this.analyzer.dependencyPathAnalyzed(filePath);
             }
           } catch (err) {
             reject(err);
