@@ -31,7 +31,6 @@ import {urlFromPath, pathFromUrl} from './path-transformers';
 
 const minimatchAll = require('minimatch-all');
 const logger = logging.getLogger('cli.build.analyzer');
-logging.setVerbose();
 
 export interface DocumentDeps {
   imports: Array<string>;
