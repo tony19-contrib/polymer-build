@@ -31,6 +31,7 @@ import {urlFromPath, pathFromUrl} from './path-transformers';
 
 const minimatchAll = require('minimatch-all');
 const logger = logging.getLogger('cli.build.analyzer');
+logging.setVerbose();
 
 export interface DocumentDeps {
   imports: Array<string>;
@@ -283,22 +284,37 @@ export class BuildAnalyzer {
   private onSourcesStreamComplete() {
     // Emit an error if there are missing source files still deferred. Otherwise
     // this would cause the analyzer to hang.
-    if (this.loader.hasDeferredFiles()) {
-      for (const fileUrl of this.loader.deferredFiles.keys()) {
-        // TODO(fks) 01-13-2017: Replace with config.isSource() once released
-        if (minimatchAll(fileUrl, this.config.sources)) {
-          this.emitError(new Error(`Not found: ${fileUrl}`));
-        }
+    for (const filePath of this.loader.deferredFiles.keys()) {
+      // TODO(fks) 01-13-2017: Replace with config.isSource() once released
+      if (minimatchAll(filePath, this.config.sources)) {
+        this.emitNotFoundError(filePath);
+        return;
       }
     }
+
     // Set sourceFilesLoaded so that future files aren't accidentally deferred
     this.sourceFilesLoaded = true;
   }
 
+
   /**
-   * Helper function for emitting a general error onto both file streams.
+   * Helper function for emitting a "Not Found" error onto the correct
+   * file stream.
    */
-  emitError(err: Error) {
+  private emitNotFoundError(filePath: string) {
+    const err = new Error(`Not found: ${filePath}`);
+    if (minimatchAll(filePath, this.config.sources)) {
+      this._sourcesProcessingStream.emit('error', err);
+    } else {
+      this._dependenciesProcessingStream.emit('error', err);
+    }
+  }
+
+  /**
+   * Helper function for emitting a general analysis error onto both file
+   * streams.
+   */
+  private emitAnalysisError(err: Error) {
     this._sourcesProcessingStream.emit('error', err);
     this._dependenciesProcessingStream.emit('error', err);
   }
@@ -315,7 +331,7 @@ export class BuildAnalyzer {
 
     // If any ERROR warnings occurred, propagate an error in each build stream.
     if (errorWarningCount > 0) {
-      this.emitError(
+      this.emitAnalysisError(
           new Error(`${errorWarningCount} error(s) occurred during build.`));
       return;
     }
@@ -323,10 +339,10 @@ export class BuildAnalyzer {
     // If stream finished with files that still needed to be loaded, propagate
     // an error in each build stream.
     if (this.loader.hasDeferredFiles()) {
-      for (const fileUrl of this.loader.deferredFiles.keys()) {
-        this.emitError(new Error(`Not found: ${fileUrl}`));
+      for (const filePath of this.loader.deferredFiles.keys()) {
+        this.emitNotFoundError(filePath);
+        return;
       }
-      return;
     }
 
     // Resolve our dependency analysis promise now that we have seen all files
@@ -445,7 +461,8 @@ export class BuildAnalyzer {
   }
 
   /**
-   * Check that the source stream has not already completed loading by the time
+   * Check that the source stream has not already completed loading by the
+   * time
    * this file was analyzed.
    */
   sourcePathAnalyzed(filePath: string): void {
